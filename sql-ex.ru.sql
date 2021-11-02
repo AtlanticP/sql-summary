@@ -1,4 +1,32 @@
-#65. MSSQL
+#66 MSSQL
+# Для всех дней в интервале с 01/04/2003 по 07/04/2003 
+# определить число рейсов из Rostov.
+# Вывод: дата, количество рейсов
+
+SELECT date as dt, MAX(Qty) as Qty FROM (
+    SELECT date, COUNT(*) Qty FROM (
+        SELECT DISTINCT date, t.trip_no  FROM Pass_in_trip pit 
+        FULL JOIN Trip t ON t.trip_no=pit.trip_no 
+        WHERE date BETWEEN '2003-04-01' AND '2003-04-07' AND t.town_from='Rostov'
+    ) AS t
+    GROUP BY date
+    UNION SELECT '2003-04-01', 0
+    UNION ALL
+    SELECT '2003-04-02', 0
+    UNION ALL
+    SELECT '2003-04-03', 0
+    UNION ALL
+    SELECT '2003-04-04', 0
+    UNION ALL
+    SELECT '2003-04-05', 0
+    UNION ALL
+    SELECT '2003-04-06', 0
+    UNION ALL
+    SELECT '2003-04-07', 0
+) AS t
+GROUP BY date
+
+#65 MSSQL
 # Пронумеровать уникальные пары {maker, type} из Product, 
 # упорядочив их следующим образом:
 # - имя производителя (maker) по возрастанию;
