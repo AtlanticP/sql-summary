@@ -1,3 +1,22 @@
+#67 MSSQL
+# Найти количество маршрутов, которые обслуживаются наибольшим 
+# числом рейсов. Замечания.
+# 1) A - B и B - A считать РАЗНЫМИ маршрутами.
+# 2) Использовать только таблицу Trip
+
+SELECT COUNT(*) as qty FROM (
+    SELECT town_from, town_to, COUNT(trip_no) AS freq FROM Trip
+    GROUP BY town_from, town_to
+    HAVING COUNT(*) >= (
+      SELECT MAX(freq) as mxfreq FROM (
+                SELECT town_from, town_to, COUNT(trip_no) AS freq FROM Trip
+                GROUP BY town_from, town_to
+            ) AS t
+        )
+ ) AS t1
+ GROUP BY freq
+
+
 #66 MSSQL
 # Для всех дней в интервале с 01/04/2003 по 07/04/2003 
 # определить число рейсов из Rostov.
