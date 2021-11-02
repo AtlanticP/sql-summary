@@ -1,3 +1,48 @@
+#65. MSSQL
+# Пронумеровать уникальные пары {maker, type} из Product, 
+# упорядочив их следующим образом:
+# - имя производителя (maker) по возрастанию;
+# - тип продукта (type) в порядке PC, Laptop, Printer.
+# Если некий производитель выпускает несколько типов продукции, 
+# то выводить его имя только в первой строке;
+# остальные строки для ЭТОГО производителя должны содержать 
+# пустую строку символов (''). 
+
+SELECT 
+    row_number() over(ORDER BY maker, ord) as num,
+    maker_new,
+    type
+FROM (
+    SELECT 
+        maker,
+        type, 
+        CASE 
+            WHEN type = 'PC'
+            THEN 1
+            WHEN type = 'Laptop'
+            THEN 2
+            ELSE 3
+        END as ord,
+        CASE
+            WHEN type='PC'
+            THEN maker
+            WHEN (type='Laptop' AND maker IN (SELECT maker FROM Product WHERE type='PC')) 
+                OR 
+                 (type='Printer' AND maker IN (SELECT maker FROM Product WHERE type='PC'))
+            THEN ''
+            WHEN (type='Laptop' AND maker NOT IN (SELECT maker FROM Product WHERE type='PC'))
+            THEN maker
+            WHEN (type='Printer' AND maker IN (SELECT maker FROM Product WHERE type='PC'))
+                OR 
+                (type='Printer' AND maker IN (SELECT maker FROM Product WHERE type='Laptop'))
+            THEN ''
+            ELSE maker
+        END as maker_new
+    FROM Product p 
+    GROUP BY type, maker 
+) as t
+ORDER BY maker
+
 #64 MSSQL
 -- Using the Income and Outcome tables, determine for 
 -- each buy-back center the days when it received funds 
