@@ -1,3 +1,28 @@
+#68 MSSQL
+# Найти количество маршрутов, которые обслуживаются 
+# наибольшим числом рейсов.
+# Замечания.
+# 1) A - B и B - A считать ОДНИМ И ТЕМ ЖЕ маршрутом.
+# 2) Использовать только таблицу Trip
+
+SELECT COUNT(*) FROM (
+    SELECT TOP 1 WITH TIES SUM(freq) c FROM (   
+        SELECT freq, town_from, town_to FROM (      
+        SELECT COUNT(*) as freq, town_from, town_to FROM Trip
+        WHERE town_from > town_to 
+        GROUP BY town_from, town_to
+        UNION ALL 
+        SELECT COUNT(*), town_to, town_from FROM Trip
+        WHERE town_from < town_to 
+        GROUP BY town_from, town_to
+        ) AS t
+    ) as tt
+    GROUP BY town_from, town_to
+    ORDER BY c DESC
+) as ttt
+GROUP BY c
+
+
 #67 MSSQL
 # Найти количество маршрутов, которые обслуживаются наибольшим 
 # числом рейсов. Замечания.
