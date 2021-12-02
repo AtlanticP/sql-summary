@@ -1,4 +1,23 @@
-#68 MSSQL
+# 144 MYSQL
+# Найти производителей, которые производят PC как 
+# с самой низкой ценой, так и с самой высокой.
+# Вывод: maker
+
+WITH cte AS (
+    SELECT min(price) as min, max(price) as max FROM Product p 
+    JOIN PC p2 ON p.model = p2.model
+)
+SELECT p.maker FROM Product p 
+JOIN PC p2 ON p.model = p2.model
+GROUP BY maker
+HAVING MAX(p2.price) = (
+        SELECT max FROM cte
+    ) AND
+    MIN(p2.price) =(
+        SELECT min FROM cte
+    )
+
+# 68 MSSQL
 # Найти количество маршрутов, которые обслуживаются 
 # наибольшим числом рейсов.
 # Замечания.
