@@ -1,3 +1,35 @@
+-- 145 MSSQL
+-- Для каждой пары последовательных дат, dt1 и dt2, поступления 
+-- средств (таблица Income_o) найти сумму выдачи денег (таблица Outcome_o) 
+-- в полуоткрытом интервале (dt1, dt2].
+-- Вывод: сумма, левая граница интервала, правая граница интервала.
+
+SELECT qty, dt1, dt2 FROM (
+    SELECT
+        LEAD(SUM(IIF(t1.out is NULL, 0, t1.out)), 1) OVER (ORDER BY io.date) as qty,
+        io.date as dt1,
+        LEAD(io.date, 1) OVER (ORDER BY io.date) as dt2
+    FROM Income_o io 
+    OUTER APPLY (
+        SELECT out FROM Outcome_o oo WHERE io.date = oo.date
+    ) as t1
+    GROUP BY io.date
+) as t2
+WHERE dt2 IS NOT NULL
+
+--MYSQL
+WITH cte AS (
+    SELECT 
+        LEAD(SUM(IF(oo.out IS NULL, 0, oo.out)), 1) OVER (ORDER BY io.date) as qty,
+        io.date as dt1,
+        LEAD (io.date, 1) OVER (ORDER BY io.date) as dt2
+    FROM Income_o io
+    LEFT JOIN Outcome_o oo ON io.date = oo.date
+    GROUP BY io.date
+)
+SELECT qty, dt1, dt2 FROM cte
+WHERE dt2 IS NOT NULL
+
 # 144 MYSQL
 # Найти производителей, которые производят PC как 
 # с самой низкой ценой, так и с самой высокой.
@@ -17,12 +49,152 @@ HAVING MAX(p2.price) = (
         SELECT min FROM cte
     )
 
-# 68 MSSQL
-# Найти количество маршрутов, которые обслуживаются 
-# наибольшим числом рейсов.
-# Замечания.
-# 1) A - B и B - A считать ОДНИМ И ТЕМ ЖЕ маршрутом.
-# 2) Использовать только таблицу Trip
+-- 143 MSSQL
+-- Для каждого сражения определить день, являющийся последней пятницей месяца, 
+-- в котором произошло данное сражение.
+-- Вывод: сражение, дата сражения, дата последней пятницы месяца.
+-- Даты представить в формате "yyyy-mm-dd"
+
+SELECT
+    name,
+    FORMAT(
+        date,
+        'yyyy-MM-dd'
+    ) AS date,
+    FORMAT(
+        DATEADD(
+            dy,
+            DATEDIFF(
+                dy,
+                '18000103',
+                EOMONTH(date)
+            )/7*7,
+            '18000103'
+        ),
+        'yyyy-MM-dd'
+    ) AS fri
+FROM Battles b
+
+-- EOMONTH
+
+SELECT DATEADD(
+    dy,
+    DATEDIFF(
+        dy,
+        '1900-01-05',
+        DATEADD(
+            mm,
+            DATEDIFF(mm, 0, current_timestamp),
+            30
+        )
+    )/7*7,
+    '1900-01-05'
+) 
+
+# MYSQL
+SELECT 
+    name,
+    DATE_FORMAT(date, '%Y-%m-%d') AS date,
+    DATE_ADD(
+        '18000103',
+        INTERVAL 
+            FLOOR(
+                DATEDIFF(
+                    LAST_DAY(date), 
+                    '18000103'
+                )/7
+            )*7 
+        DAY
+    ) AS fri
+FROM Battles b
+
+-- 130
+-- Историки решили составить отчет о битвах в два суперстолбца. 
+-- Каждый суперстолбец состоит из трёх столбцов (номер битвы, название и дата).
+-- Сначала в порядке возрастания номеров заполняется первый суперстолбец, 
+-- потом - второй. Порядковый номер битве назначается согласно сортировке: 
+-- дата, название.
+-- С целью экономии бумаги, историки делят информацию из таблицы Battles 
+-- поровну, занося в первый суперстолбец на одну битву больше при их 
+-- нечетном количестве.
+-- В таблицу с шестью колонками вывести результат работы историков, 
+-- пустые места заполнить NULL-значениями.
+
+WITH cte1 as (
+    SELECT
+        ROW_NUMBER () OVER (ORDER BY date, name) as rn,
+        name,
+        date,
+        NTILE (2) OVER (ORDER BY date, name) as gr
+    FROM Battles b 
+), cte2 as (
+    SELECT 
+        *,
+        ROW_NUMBER () OVER (PARTITION BY gr ORDER BY date, name) as rn2
+    FROM cte1
+)
+SELECT
+    MIN(IF(gr=1, rn, NULL)) as rn_1,
+    MIN(IF(gr=1, name, NULL)) as name_1,
+    MIN(IF(gr=1, date, NULL)) as date_1,
+    MIN(IF(gr=2, rn, NULL)) as rn_2,
+    MIN(IF(gr=2, name, NULL)) as name_2,
+    MIN(IF(gr=2, date, NULL)) as date_2
+FROM cte2
+GROUP BY rn2
+
+# MYSQL 8
+WITH cte as (
+    SELECT
+        ROW_NUMBER () OVER (ORDER BY date, name) as rn,
+        name,
+        date
+    FROM Battles b
+), cte2 as (
+    SELECT
+        rn as rn_1,
+        name as name_1,
+        date as date_1,
+        LEAD (rn, 3) OVER (ORDER BY date, name) as rn_2,
+        LEAD (name, 3) OVER (ORDER BY date, name) as name_2,
+        LEAD (date, 3) OVER (ORDER BY date, name) as date_2,
+        RANK () OVER (ORDER BY date, name) as rnk
+    FROM cte
+)
+SELECT 
+    *   
+FROM cte2
+WHERE rnk <= (SELECT CEIL(COUNT(*)/2) FROM Battles b)
+
+WITH cte as (
+    SELECT
+        ROW_NUMBER () OVER (ORDER BY date, name) as rn,
+        name,
+        date
+    FROM Battles b
+), cte2 as (
+    SELECT
+        rn as rn_1,
+        name as name_1,
+        date as date_1,
+        LEAD (rn, 
+            -- You have an error in your SQL syntax;
+            (SELECT FLOOR(COUNT(*)/2) as nmb FROM Battles b)
+            --        
+        ) OVER (ORDER BY date, name) as rn_2,
+        LEAD (name, 3) OVER (ORDER BY date, name) as name_2,
+        LEAD (date, 3) OVER (ORDER BY date, name) as date_2,
+        RANK () OVER (ORDER BY date, name) as rnk
+    FROM cte
+)
+
+
+-- 68 MSSQL
+-- Найти количество маршрутов, которые обслуживаются 
+-- наибольшим числом рейсов.
+-- Замечания.
+-- 1) A - B и B - A считать ОДНИМ И ТЕМ ЖЕ маршрутом.
+-- 2) Использовать только таблицу Trip
 
 SELECT COUNT(*) FROM (
     SELECT TOP 1 WITH TIES SUM(freq) c FROM (   
@@ -42,11 +214,11 @@ SELECT COUNT(*) FROM (
 GROUP BY c
 
 
-#67 MSSQL
-# Найти количество маршрутов, которые обслуживаются наибольшим 
-# числом рейсов. Замечания.
-# 1) A - B и B - A считать РАЗНЫМИ маршрутами.
-# 2) Использовать только таблицу Trip
+-- 67 MSSQL
+-- Найти количество маршрутов, которые обслуживаются наибольшим 
+-- числом рейсов. Замечания.
+-- 1) A - B и B - A считать РАЗНЫМИ маршрутами.
+-- 2) Использовать только таблицу Trip
 
 SELECT COUNT(*) as qty FROM (
     SELECT town_from, town_to, COUNT(trip_no) AS freq FROM Trip
@@ -61,10 +233,10 @@ SELECT COUNT(*) as qty FROM (
  GROUP BY freq
 
 
-#66 MSSQL
-# Для всех дней в интервале с 01/04/2003 по 07/04/2003 
-# определить число рейсов из Rostov.
-# Вывод: дата, количество рейсов
+-- 66 MSSQL
+-- Для всех дней в интервале с 01/04/2003 по 07/04/2003 
+-- определить число рейсов из Rostov.
+-- Вывод: дата, количество рейсов
 
 SELECT date as dt, MAX(Qty) as Qty FROM (
     SELECT date, COUNT(*) Qty FROM (
@@ -89,15 +261,15 @@ SELECT date as dt, MAX(Qty) as Qty FROM (
 ) AS t
 GROUP BY date
 
-#65 MSSQL
-# Пронумеровать уникальные пары {maker, type} из Product, 
-# упорядочив их следующим образом:
-# - имя производителя (maker) по возрастанию;
-# - тип продукта (type) в порядке PC, Laptop, Printer.
-# Если некий производитель выпускает несколько типов продукции, 
-# то выводить его имя только в первой строке;
-# остальные строки для ЭТОГО производителя должны содержать 
-# пустую строку символов (''). 
+-- 65 MSSQL
+-- Пронумеровать уникальные пары {maker, type} из Product, 
+-- упорядочив их следующим образом:
+-- - имя производителя (maker) по возрастанию;
+-- - тип продукта (type) в порядке PC, Laptop, Printer.
+-- Если некий производитель выпускает несколько типов продукции, 
+-- то выводить его имя только в первой строке;
+-- остальные строки для ЭТОГО производителя должны содержать 
+-- пустую строку символов (''). 
 
 SELECT 
     row_number() over(ORDER BY maker, ord) as num,
@@ -134,7 +306,7 @@ FROM (
 ) as t
 ORDER BY maker
 
-#64 MSSQL
+# 64 MSSQL
 -- Using the Income and Outcome tables, determine for 
 -- each buy-back center the days when it received funds 
 -- but made no payments, and vice versa. 
